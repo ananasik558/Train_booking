@@ -2,7 +2,7 @@ import streamlit as st
 from ..repositories.ticket import create_ticket, delete_ticket, get_tickets_by_user
 from ..repositories.users import get_all_users, get_user_by_id
 from ..repositories.trains import get_all_trains
-from ..repositories.seats import get_all_available_seats
+from ..repositories.seats import get_all_available_seats, get_available_seats_by_train
 
 
 def show_tickets_page():
@@ -33,32 +33,39 @@ def show_tickets_page():
         st.subheader("Buy a Ticket")
 
         try:
-            # Получаем все поезда и доступные места
+            # Получаем все поезда
             trains = get_all_trains()  # Функция для получения всех поездов
-            available_seats = get_all_available_seats()  # Функция для получения всех доступных мест
 
-            if trains and available_seats:
-                # Селектор для выбора поезда и места
+            if trains:
+                # Селектор для выбора поезда
                 selected_train = st.selectbox(
                     "Select a train:",
                     options=trains,
                     format_func=lambda train: f"Train ID: {train['id']} - Type: {train['type']}"
                 )
 
-                selected_seat = st.selectbox(
-                    "Select a seat:",
-                    options=available_seats,
-                    format_func=lambda seat: f"Seat Number: {seat['seat_number']} - Status: {seat['status']}"
-                )
+                # Получаем доступные места для выбранного поезда
+                available_seats = get_available_seats_by_train(selected_train["id"])  # Новая функция для фильтрации мест по поезду
 
-                if st.button("Buy Ticket"):
-                    try:
-                        create_ticket(current_user_id, selected_train["id"], selected_seat["id"])
-                        st.success(f"You have successfully bought a ticket for Train {selected_train['id']}, Seat {selected_seat['seat_number']}.")
-                    except Exception as e:
-                        st.error(f"Failed to buy ticket: {e}")
+                if available_seats:
+                    # Селектор для выбора места
+                    selected_seat = st.selectbox(
+                        "Select a seat:",
+                        options=available_seats,
+                        format_func=lambda seat: f"Seat Number: {seat['seat_number']} - Status: {seat['status']}"
+                    )
+
+                    if st.button("Buy Ticket"):
+                        try:
+                            # Создаем билет для текущего пользователя
+                            create_ticket(current_user_id, selected_train["id"], selected_seat["id"])
+                            st.success(f"You have successfully bought a ticket for Train {selected_train['id']}, Seat {selected_seat['seat_number']}.")
+                        except Exception as e:
+                            st.error(f"Failed to buy ticket: {e}")
+                else:
+                    st.write("No available seats for the selected train.")
             else:
-                st.write("No trains or available seats.")
+                st.write("No trains available.")
         except Exception as e:
             st.error(f"Failed to load trains or seats: {e}")
 
